@@ -16,7 +16,6 @@ pub struct DiscordConfig {
 
 #[derive(Clone)]
 pub struct MarketConfig {
-    pub enabled: bool,
     pub finnhub_token: String,
     pub watchlist: Vec<String>,
 }
@@ -45,10 +44,6 @@ impl AppConfig {
 
 
         //market report information
-        let market_enabled:bool = std::env::var("MARKET_ENABLED")
-        .context("MARKET_ENABLED not found")?
-        .parse::<bool>()?;
-
         let finnhub_token = std::env::var("FINNHUB_TOKEN")
         .context("Finnhub token not found")?;
 
@@ -68,7 +63,6 @@ impl AppConfig {
                 channels
             },
             market: MarketConfig {
-                enabled:market_enabled,
                 finnhub_token,
                 watchlist,
             }

@@ -7,25 +7,23 @@ mod jobs;
 
 use serenity::all::GatewayIntents;
 use serenity::prelude::*;
+use std::sync::Arc;
 
 use config::AppConfig;
 use handler::Handler;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let app_config = AppConfig::from_env()?;
-
-    let discord_config = app_config.discord;
-    let market_config = app_config.market;
+    let app_config = Arc::new(AppConfig::from_env()?);
+    let token = app_config.discord.token.clone();
 
     let intents = GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
 
     let handler = Handler {
-        channels: discord_config.channels,
-        market: market_config,
+        app_config: Arc::clone(&app_config),
     };
 
-    let mut client = Client::builder(discord_config.token, intents)
+    let mut client = Client::builder(token, intents)
         .event_handler(handler)
         .await?;
 

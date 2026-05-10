@@ -1,16 +1,13 @@
 use serenity::async_trait;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
-use serenity::all::ChannelId;
-use std::collections::HashMap;
+use std::sync::Arc;
 
-use crate::config::MarketConfig;
+use crate::config::AppConfig;
 use crate::scheduler::start_scheduler;
 
 pub struct Handler {
-    pub channels: HashMap<String, ChannelId>,
-    pub market: MarketConfig,
-
+    pub app_config: Arc<AppConfig>,
 }
 
 
@@ -22,10 +19,9 @@ impl EventHandler for Handler {
 
         // ctx attribute for discord connection
         let ctx_clone = _ctx.clone();
-        let channels = self.channels.clone();
-        let market_config = self.market.clone();
+        let app_config = Arc::clone(&self.app_config);
         tokio::spawn(async move {
-            start_scheduler(ctx_clone, channels, market_config).await;
+            start_scheduler(ctx_clone, app_config).await;
         });
         
     }

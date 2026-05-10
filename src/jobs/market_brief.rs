@@ -1,52 +1,14 @@
-use serenity::async_trait;
+mod job;
 
+use crate::config::AppConfig;
 use crate::jobs::Job;
-use crate::jobs::output::{JobOutput, EmbedMessage, JobMessage};
 
-use crate::services::market;
+pub const CHANNEL_KEY: &str = "DAILY_BRIEF";
 
-pub struct MarketBriefJob {
-    finnhub_token: String,
-    watchlist: Vec<String>,
-    channel_key: String,
-}
-
-
-impl MarketBriefJob {
-    pub fn new(finnhub_token: String, watchlist:Vec<String>, channel_key:String) -> Self{
-        Self {
-            finnhub_token,
-            watchlist,
-            channel_key,
-        }
-    }
-}
-
-#[async_trait]
-impl Job for MarketBriefJob{
-    fn name(&self) -> &str {
-        "Market Brief"
-    }
-
-    async fn run(&self) -> anyhow::Result<JobOutput> {
-        let fields = market::build_market_fields(
-            &self.finnhub_token,
-            &self.watchlist)
-            .await?;
-
-        let embed_message = EmbedMessage {
-            title: "Daily Market Brief".to_string(),
-            description: Some("Market Snapshot".to_string()),
-            fields,
-            footer: Some("Discord Market Bot".to_string()),
-        };
-
-        let job = JobOutput {
-            channel_key: self.channel_key.clone(),
-            message: JobMessage::Embed(embed_message)
-        };
-
-
-        Ok(job)
-    }
+pub fn register(app_config: &AppConfig) -> Box<dyn Job + Send + Sync> {
+    Box::new(job::MarketBriefJob::new(
+        app_config.market.finnhub_token.clone(),
+        app_config.market.watchlist.clone(),
+        CHANNEL_KEY.to_string(),
+    ))
 }
