@@ -5,28 +5,37 @@ use tokio::time::sleep;
 
 use std::collections::HashMap;
 
+use crate::jobs::Job;
+use crate::jobs::market_brief::MarketBriefJob;
+use crate::sender::send_job_output;
+
 use crate::config::MarketConfig;
-use crate::sender::send_embed_message;
-use crate::services::market;
+
 
 pub async fn start_scheduler(ctx: Context, channels: HashMap<String, ChannelId>, market: MarketConfig) {
-    
-    if !market.enabled {
-        println!("Market scheduler disabled");
+    let mut jobs: Vec<Box<dyn Job + Send + Sync>> = Vec::new();
+    if market.enabled{
+        let market_job = MarketBriefJob::new(
+            market.finnhub_token.clone(),
+            market.watchlist.clone(),
+            "DAILY_BRIEF".to_string(),
+        );
+        jobs.push(Box::new(market_job));
+    }
+
+    if jobs.is_empty() {
+        println!("No jobs enabled");
         return;
     }
 
     loop {
-        
-        match market::build_daily_brief(&market.finnhub_token, &market.watchlist).await {
-            Ok(brief) => send_embed_message(&ctx, get_channel(&channels, "DAILY_BRIEF").unwrap(), &brief).await,
-            Err(e) => eprintln!("Failed to build daily brief: {:?}", e),
-        }
-    
-        sleep(Duration::from_secs(600)).await;
-    }
-}
+        for job in &jobs {
+            match job.run().await {
+            Ok(output) => send_job_output(&ctx, &channels, output).await,
+            Err(e) => eprintln!("Error happened for Job:{}: {:?}",job.name(), e)           
+            }
+        };
 
-fn get_channel(channels: &HashMap<String, ChannelId>, name: &str) -> Option<ChannelId> {
-    channels.get(name).copied()
+        sleep(Duration::from_secs(20)).await;
+    }
 }

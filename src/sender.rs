@@ -1,37 +1,49 @@
 use serenity::all::{ChannelId, Colour, CreateEmbed, CreateEmbedFooter, CreateMessage};
 use serenity::prelude::Context;
 
-use crate::services::market::DailyBrief;
+use crate::jobs::output::{JobMessage, JobOutput};
+use std::collections::HashMap;
 
-#[warn(dead_code)]
-pub async fn send_message(ctx: &Context, channel_id: ChannelId, message: &str) {
-    let result = channel_id.say(&ctx.http, message).await;
 
-    if let Err(e) = result {
-        eprintln!("Failed to send message: {:?}", e);
-    }
-}
+pub async fn send_job_output(ctx: &Context, channels: &HashMap<String, ChannelId>, output: JobOutput){
+    let Some(channel_id) = channels.get(&output.channel_key).copied() else {
+        eprintln!("Channel not found: {}", &output.channel_key);
+        return;
+    };
 
-pub async fn send_embed_message(ctx: &Context, channel_id: ChannelId, brief: &DailyBrief){
-    let mut embed = CreateEmbed::new()
-    .title(&brief.title)
-    .color(Colour::DARK_GREEN)
-    .description("Market snapshot")
-    .footer(CreateEmbedFooter::new("Discord Market Bot"));
+    match output.message {
+        JobMessage::Text(text) => {
+            let result = channel_id.say(&ctx.http, text).await;
 
-    for stock in &brief.stocks {
-        embed = embed.field(&stock.name, &stock.value, stock.inline);
-    }
+            if let Err(e) = result {
+                eprintln!("Failed to send message: {:?}", e);
+            }
+        },
+        JobMessage::Embed(embed_message) => {
+            let mut embed = CreateEmbed::new()
+            .title(embed_message.title)
+            .color(Colour::DARK_GREEN);
 
-    for crypto in &brief.crypto {
-        embed = embed.field(&crypto.name, &crypto.value, crypto.inline);
-    }
+            if let Some(description) = embed_message.description {
+                embed = embed.description(description);
+            }
 
-    let message = CreateMessage::new().embed(embed);
+            for field in embed_message.fields {
+                embed = embed.field(field.name, field.value, field.inline);
+            }
+            
+            if let Some(footer) = embed_message.footer {
+                embed = embed.footer(CreateEmbedFooter::new(footer));
+            }
 
-    let result = channel_id.send_message(&ctx.http, message).await;
+            let message = CreateMessage::new().embed(embed);
 
-    if let Err(e) = result {
-        eprintln!("Failed to send embed message {:?}", e);
+            let result = channel_id.send_message(&ctx.http, message).await;
+
+            if let Err(e) = result {
+                eprintln!("Failed to send embed job: {:?}", e);
+            }
+
+        }
     }
 }

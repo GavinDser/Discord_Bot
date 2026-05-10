@@ -29,6 +29,7 @@ impl AppConfig {
     pub fn from_env() -> anyhow::Result<Self> {
         dotenvy::dotenv().context("Failed to load env")?;
 
+        //discord information
         let token = std::env::var("DISCORD_TOKEN")
         .context("Discord bot token not found")?;
 
@@ -42,6 +43,8 @@ impl AppConfig {
             }
         }
 
+
+        //market report information
         let market_enabled:bool = std::env::var("MARKET_ENABLED")
         .context("MARKET_ENABLED not found")?
         .parse::<bool>()?;

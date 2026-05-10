@@ -3,6 +3,7 @@ mod handler;
 mod scheduler;
 mod sender;
 mod services;
+mod jobs;
 
 use serenity::all::GatewayIntents;
 use serenity::prelude::*;

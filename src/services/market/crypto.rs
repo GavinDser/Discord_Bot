@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use crate::services::market::BriefField;
+use crate::jobs::output::EmbedField;
 
 #[derive(Deserialize)]
 struct CryptoPriceResponse {
@@ -12,7 +12,7 @@ struct CoinPrice {
     usd: f64,
 }
 
-pub async fn get_crypto_quote_text() -> anyhow::Result<Vec<BriefField>> {
+pub async fn get_crypto_quote_text() -> anyhow::Result<Vec<EmbedField>> {
     let url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd";
 
     let client = reqwest::Client::builder()
@@ -27,12 +27,12 @@ pub async fn get_crypto_quote_text() -> anyhow::Result<Vec<BriefField>> {
 
 
     Ok(vec![
-        BriefField {
+        EmbedField {
             name: "Bitcoin".to_string(),
             value: format!("**${:.2}**", response.bitcoin.usd),
             inline: true,
         },
-        BriefField {
+        EmbedField {
             name: "Ethereum".to_string(),
             value: format!("**${:.2}**", response.ethereum.usd),
             inline: true,

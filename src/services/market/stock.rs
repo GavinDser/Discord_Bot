@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::services::market::BriefField;
+use crate::jobs::output::EmbedField;
 
 
 #[derive(Deserialize)]
@@ -54,12 +54,12 @@ pub async fn get_stock_quote_text(symbol: &str, finnhub_token: &str) -> anyhow::
     Ok(quote)
 }
 
-pub async fn get_watchlist_quote_text(watchlist: &[String], finnhub_token: &str) -> anyhow::Result<Vec<BriefField>>{
-    let mut fields: Vec<BriefField> = Vec::new();
+pub async fn get_watchlist_quote_text(watchlist: &[String], finnhub_token: &str) -> anyhow::Result<Vec<EmbedField>>{
+    let mut fields: Vec<EmbedField> = Vec::new();
     for symbol in watchlist {
         match get_stock_quote_text(symbol, finnhub_token).await {
             Ok(current_stock) => {
-                fields.push(BriefField {
+                fields.push(EmbedField {
                     name: symbol.to_string(),
                     value: current_stock,
                     inline: true,
@@ -67,7 +67,7 @@ pub async fn get_watchlist_quote_text(watchlist: &[String], finnhub_token: &str)
             }
             Err(e) => {
                 eprintln!("Failed to fetch {}, error is {}", symbol,e);
-                fields.push(BriefField { 
+                fields.push(EmbedField { 
                     name: symbol.to_string(), 
                     value: "**N/A**\n`Failed to fetch`".to_string(), 
                     inline: true})
