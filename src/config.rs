@@ -7,6 +7,7 @@ pub struct AppConfig {
     pub discord: DiscordConfig,
     pub finnhub: FinnhubConfig,
     pub stock: StockConfig,
+    pub scheduler: SchedulerConfig,
 }
 
 pub struct DiscordConfig {
@@ -22,13 +23,15 @@ pub struct StockConfig {
     pub watchlist: Vec<String>,
 }
 
-
+pub struct SchedulerConfig {
+    pub run_on_start: bool,
+}
 
 
 
 impl AppConfig {
     pub fn from_env() -> anyhow::Result<Self> {
-        dotenvy::dotenv().context("Failed to load env")?;
+        dotenvy::dotenv().ok();
 
         //discord information
         let token = std::env::var("DISCORD_TOKEN")
@@ -60,6 +63,12 @@ impl AppConfig {
         .map(|symbol| symbol.to_uppercase())
         .collect();
 
+        //scheduler run on start
+        let run_on_start = std::env::var("RUN_ON_START")
+        .unwrap_or_else(|_| "false".to_string())
+        .parse::<bool>()
+        .context("RUN_ON_START must be true or flase")?;
+
         Ok(Self {
             discord: DiscordConfig {
                 token,
@@ -70,7 +79,10 @@ impl AppConfig {
             },
             stock: StockConfig {
                 watchlist,
-            }
+            },
+            scheduler: SchedulerConfig {
+                 run_on_start, 
+            },
         })
         
 
