@@ -3,21 +3,21 @@ use serenity::{async_trait};
 use crate::jobs::Job;
 
 use crate::jobs::output::{
-    EmbedField,
-    EmbedMessage,
-    JobMessage,
-    JobOutput
+    EmbedMessage, JobMessage, JobOutput
 };
+use crate::services::news;
 
 
 
 pub struct NewsJob {
     channel_key: String,
+    finnhub_token: String,
 }
 
 impl NewsJob {
-    pub fn new(channel_key: String) -> Self{
-        Self { channel_key }
+    pub fn new(channel_key: String, token: String) -> Self{
+        Self { channel_key,
+        finnhub_token: token }
     }
 }
 
@@ -28,26 +28,16 @@ impl Job for NewsJob {
     }
 
     async fn run(&self) -> anyhow::Result<JobOutput> {
-        let fields = vec![
-            EmbedField {
-                name: "Mock Headline 1".to_string(),
-                value: "This is a placeholder news item.".to_string(),
-                inline: false,
-            },
-            EmbedField {
-                name: "Mock Headline 2".to_string(),
-                value: "This will later be replaced by real news data.".to_string(),
-                inline: false,
-            },
-        ];
-
-        let embed_message = EmbedMessage {
-            title: "General News Brief".to_string(),
-            description: Some("Top Market and AI headlines".to_string()),
-            fields,
-            footer: Some("Discord Market Bot".to_string()),
-        };
+        let fields= news::build_news_fields(&self.finnhub_token).await?;
         
+        let embed_message = EmbedMessage {
+            title: "Market News Brief".to_string(),
+            description: Some("Top general market headlines from Finnhub".to_string()),
+            fields,
+            footer:Some("News Bot".to_string()),
+
+        };
+
         Ok(JobOutput {
             channel_key: self.channel_key.clone(),
             message: JobMessage::Embed(embed_message),

@@ -5,8 +5,8 @@ use anyhow::Context;
 
 pub struct AppConfig {
     pub discord: DiscordConfig,
-    pub market: MarketConfig,
-    
+    pub finnhub: FinnhubConfig,
+    pub stock: StockConfig,
 }
 
 pub struct DiscordConfig {
@@ -14,9 +14,11 @@ pub struct DiscordConfig {
     pub channels: HashMap<String, ChannelId>,
 }
 
-#[derive(Clone)]
-pub struct MarketConfig {
-    pub finnhub_token: String,
+pub struct FinnhubConfig {
+    pub token: String,
+}
+
+pub struct StockConfig {
     pub watchlist: Vec<String>,
 }
 
@@ -43,10 +45,11 @@ impl AppConfig {
         }
 
 
-        //market report information
+        // external API keys
         let finnhub_token = std::env::var("FINNHUB_TOKEN")
         .context("Finnhub token not found")?;
 
+        // stock report information
         let watchlist_raw = std::env::var("WATCHLIST")
         .context("WATCHLIST Not found in env")?;
 
@@ -62,8 +65,10 @@ impl AppConfig {
                 token,
                 channels
             },
-            market: MarketConfig {
-                finnhub_token,
+            finnhub: FinnhubConfig {
+                token: finnhub_token,
+            },
+            stock: StockConfig {
                 watchlist,
             }
         })
