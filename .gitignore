@@ -1,6 +1,5 @@
 /target
 .env
-AI_CODING_RULES.md
 PROJECT_CONTEXT.md
 .dockerignore
 docker-compose.yml
