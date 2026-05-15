@@ -8,6 +8,7 @@ pub struct AppConfig {
     pub finnhub: FinnhubConfig,
     pub stock: StockConfig,
     pub scheduler: SchedulerConfig,
+    pub gemini: GeminiConfig,
 }
 
 pub struct DiscordConfig {
@@ -27,6 +28,10 @@ pub struct SchedulerConfig {
     pub run_on_start: bool,
 }
 
+pub struct GeminiConfig {
+    pub api_key: String,
+    pub model: String,
+}
 
 
 impl AppConfig {
@@ -69,6 +74,14 @@ impl AppConfig {
         .parse::<bool>()
         .context("RUN_ON_START must be true or flase")?;
 
+        //Gemini LLM config
+        let gemini_key = std::env::var("GEMINI_API_KEY")
+        .context("Cannot find gemini API key")?;
+
+        let gemini_model = std::env::var("GEMINI_MODEL")
+        .unwrap_or_else(|_| "gemini-2.5-flash".to_string());
+
+
         Ok(Self {
             discord: DiscordConfig {
                 token,
@@ -83,6 +96,8 @@ impl AppConfig {
             scheduler: SchedulerConfig {
                  run_on_start, 
             },
+            gemini: GeminiConfig { api_key: gemini_key, 
+                model: gemini_model },
         })
         
 
