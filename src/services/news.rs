@@ -120,3 +120,7 @@ async fn fetch_finnhub_news(finnhub_token: &str) -> anyhow::Result<Vec<NewsItem>
 
 
 }
+
+async fn generate_news_summary(
+    news_items: &[NewsItem]
+)
