@@ -1,7 +1,8 @@
 use crate::jobs::output::EmbedField;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use reqwest;
+use anyhow::anyhow;
 
 //Used to digest finnhub jsons
 pub struct NewsItem {
@@ -32,12 +33,51 @@ struct FinnhubNewsItem {
 }
 
 
-pub async fn build_news_digest(finnhub_token: &str, _gemini_api_key: &str, _gemini_model: &str) -> anyhow::Result<NewsDigest>{
-    let mut news_items = fetch_finnhub_news(finnhub_token).await?;
+//struct for gemini request
+#[derive(Serialize)]
+struct GeminiRequest {
+    contents: Vec<GeminiContent>
+}
+
+#[derive(Serialize)]
+struct GeminiContent {
+    parts: Vec<GeminiPart>
+}
+
+#[derive(Serialize)]
+struct GeminiPart {
+    text: String
+}
+
+//struct for gemini response
+#[derive(Deserialize)]
+struct GeminiResponse {
+    candidates: Vec<GeminiCandidate>
+}
+
+#[derive(Deserialize)]
+struct GeminiCandidate {
+    content: GeminiResponseContent
+}
+
+#[derive(Deserialize)]
+struct GeminiResponseContent {
+    parts: Vec<GeminiResponsePart>
+}
+
+#[derive(Deserialize)]
+struct GeminiResponsePart {
+    text: String
+}
+
+
+//function needed to call for news digest
+pub async fn build_news_digest(finnhub_token: &str, gemini_api_key: &str, gemini_model: &str) -> anyhow::Result<NewsDigest>{
+    let news_items = fetch_finnhub_news(finnhub_token).await?;
 
     if news_items.is_empty(){
         return Ok(NewsDigest{
-            summary: Some("Nothing is going on".to_string()),
+            summary: Some("No summary available".to_string()),
             fields:vec![EmbedField {
             name: "No Market news available".to_string(),
             value: "Finnhub did not return general market news right now.".to_string(),
@@ -45,18 +85,26 @@ pub async fn build_news_digest(finnhub_token: &str, _gemini_api_key: &str, _gemi
         }]})
     }
 
-    news_items.truncate(5);
-
     let fields = news_items
     .iter()
+    .take(5)
     .map(news_item_to_field)
     .collect();
     
-    Ok(NewsDigest { summary: Some("Test".to_string()), 
-    fields:fields })
+    let summary = match generate_news_insight(&news_items, gemini_api_key, gemini_model).await {
+        Ok(summary) => Some(summary),
+        Err(err) => {
+            eprintln!("Failed to generate Gemini news insight: {}",err);
+            None
+        }
+    };
+
+    Ok(NewsDigest {summary, 
+    fields })
 }
 
 
+// converting news item to actual discord field
 fn news_item_to_field(item: &NewsItem) -> EmbedField {
 
     EmbedField {
@@ -121,6 +169,81 @@ async fn fetch_finnhub_news(finnhub_token: &str) -> anyhow::Result<Vec<NewsItem>
 
 }
 
-async fn generate_news_summary(
-    news_items: &[NewsItem]
-)
+
+// functions for creating news insight
+async fn generate_news_insight(
+    news_items: &[NewsItem],
+    gemini_api_key: &str,
+    gemini_model: &str,
+)-> anyhow::Result<String>{
+
+    //prompt and post url for gemini assess
+    let prompt = build_news_insight_prompt(news_items);
+
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
+        gemini_model,
+        gemini_api_key
+    );
+
+    let gemini_request = GeminiRequest{
+        contents: vec![
+            GeminiContent {
+                parts: vec![
+                    GeminiPart {
+                        text: prompt
+                    }
+                ]
+            }
+        ]
+    };  
+
+    let client = reqwest::Client::new();
+
+    let res = client.post(&url)
+    .json(&gemini_request)
+    .send()
+    .await?
+    .error_for_status()?
+    .json::<GeminiResponse>()
+    .await?;
+  
+    let candidate = res.candidates.first().ok_or_else(||anyhow!("No Candidates found"))?;
+    let part = candidate.content.parts.first().ok_or_else(|| anyhow!("No response"))?;
+
+    Ok(part.text.clone())
+}
+
+fn build_news_insight_prompt(news_items: &[NewsItem]) -> String{
+
+    let mut prompt = "You are a financial market intelligence analyst.
+
+            Analyze the following market news articles and synthesize today's key market information.
+            Do not summarize each article one by one.
+            Focus on market themes, key risks, affected sectors, and stocks that investors should watch.
+            keep the total response under 1200 characters.
+
+            Output exactly in this format:
+
+            Today's Market Themes:
+            1. ...
+            2. ...
+
+            Key Risks:
+            - ...
+
+            Affected Sectors:
+            - ...
+
+            Stocks to Watch:
+            - ...
+
+            Keep the total answer concise and suitable for a Discord daily brief.
+            ".to_string();
+
+    for (index, item) in news_items.iter().take(30).enumerate(){
+        prompt.push_str(&format!("Article {}:\nTitle:{}\nSummary:{}\nSource:{}\n",index, item.title, item.summary.as_deref().unwrap_or("N/A"), item.source));
+    }
+    
+    prompt
+}
