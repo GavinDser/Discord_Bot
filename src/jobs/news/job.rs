@@ -12,12 +12,18 @@ use crate::services::news;
 pub struct NewsJob {
     channel_key: String,
     finnhub_token: String,
+    gemini_api_key: String,
+    gemini_model: String,
 }
 
 impl NewsJob {
-    pub fn new(channel_key: String, token: String) -> Self{
-        Self { channel_key,
-        finnhub_token: token }
+    pub fn new(channel_key: String, token: String, gemini_key: String, model: String) -> Self{
+        Self { 
+            channel_key,
+            finnhub_token: token,
+            gemini_api_key: gemini_key,
+            gemini_model:model,
+        }
     }
 }
 
@@ -28,12 +34,15 @@ impl Job for NewsJob {
     }
 
     async fn run(&self) -> anyhow::Result<JobOutput> {
-        let fields= news::build_news_fields(&self.finnhub_token).await?;
+        let news_digest = news::build_news_digest(
+            &self.finnhub_token,
+            &self.gemini_api_key,
+            &self.gemini_model).await?;
         
         let embed_message = EmbedMessage {
             title: "Market News Brief".to_string(),
-            description: Some("Top general market headlines from Finnhub".to_string()),
-            fields,
+            description: news_digest.summary,
+            fields: news_digest.fields,
             footer:Some("News Bot".to_string()),
 
         };

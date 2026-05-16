@@ -3,8 +3,7 @@ use serde::Deserialize;
 
 use reqwest;
 
-
-
+//Used to digest finnhub jsons
 pub struct NewsItem {
     pub title: String,
     pub source: String,
@@ -14,6 +13,14 @@ pub struct NewsItem {
     pub image: Option<String>,
 }
 
+// used to send out cleaned news structure
+pub struct NewsDigest {
+    pub summary: Option<String>,
+    pub fields: Vec<EmbedField>,
+}
+
+
+//finnhub api returned json parsing
 #[derive(Deserialize)]
 struct FinnhubNewsItem {
     headline: String,
@@ -25,15 +32,17 @@ struct FinnhubNewsItem {
 }
 
 
-pub async fn build_news_fields(finnhub_token: &str) -> anyhow::Result<Vec<EmbedField>>{
+pub async fn build_news_digest(finnhub_token: &str, _gemini_api_key: &str, _gemini_model: &str) -> anyhow::Result<NewsDigest>{
     let mut news_items = fetch_finnhub_news(finnhub_token).await?;
 
     if news_items.is_empty(){
-        return Ok(vec![EmbedField {
+        return Ok(NewsDigest{
+            summary: Some("Nothing is going on".to_string()),
+            fields:vec![EmbedField {
             name: "No Market news available".to_string(),
             value: "Finnhub did not return general market news right now.".to_string(),
             inline: false,
-        }])
+        }]})
     }
 
     news_items.truncate(5);
@@ -43,7 +52,8 @@ pub async fn build_news_fields(finnhub_token: &str) -> anyhow::Result<Vec<EmbedF
     .map(news_item_to_field)
     .collect();
     
-    Ok(fields)
+    Ok(NewsDigest { summary: Some("Test".to_string()), 
+    fields:fields })
 }
 
 
