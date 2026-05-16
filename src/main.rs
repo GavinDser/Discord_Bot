@@ -2,8 +2,9 @@ mod config;
 mod handler;
 mod scheduler;
 mod sender;
-mod services;
+mod features;
 mod jobs;
+mod presenters;
 
 use serenity::all::GatewayIntents;
 use serenity::prelude::*;
@@ -14,6 +15,8 @@ use handler::Handler;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
+
     let app_config = Arc::new(AppConfig::from_env()?);
     let token = app_config.discord.token.clone();
 

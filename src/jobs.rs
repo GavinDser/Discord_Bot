@@ -1,6 +1,7 @@
 pub mod output;
-pub mod market_brief;
+pub mod crypto;
 pub mod news;
+pub mod stock;
 
 use serenity::async_trait;
 use crate::config::AppConfig;
@@ -21,12 +22,16 @@ pub struct JobRegistryEntry {
 pub fn registry() -> Vec<JobRegistryEntry> {
     vec![
         JobRegistryEntry {
-            channel_key: market_brief::CHANNEL_KEY,
-            register: market_brief::register,
+            channel_key: crypto::CHANNEL_KEY,
+            register: crypto::register,
         },
         JobRegistryEntry {
             channel_key: news::CHANNEL_KEY,
             register: news::register,
+        },
+        JobRegistryEntry {
+            channel_key: stock::CHANNEL_KEY,
+            register: stock::register,
         },
     ]
 }

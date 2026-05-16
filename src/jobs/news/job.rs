@@ -3,9 +3,10 @@ use serenity::{async_trait};
 use crate::jobs::Job;
 
 use crate::jobs::output::{
-    EmbedMessage, JobMessage, JobOutput
+    JobMessage, JobOutput
 };
-use crate::services::news;
+use crate::features::news;
+use crate::presenters::news as news_presenter;
 
 
 
@@ -39,13 +40,12 @@ impl Job for NewsJob {
             &self.gemini_api_key,
             &self.gemini_model).await?;
         
-        let embed_message = EmbedMessage {
-            title: "Market News Brief".to_string(),
-            description: news_digest.summary,
-            fields: news_digest.fields,
-            footer:Some("News Bot".to_string()),
-
-        };
+        let embed_message = news_presenter::build_news_embed(
+            "Market News Brief".to_string(),
+            news_digest.summary,
+            news_digest.articles,
+            Some("News Bot".to_string()),
+        );
 
         Ok(JobOutput {
             channel_key: self.channel_key.clone(),

@@ -6,6 +6,8 @@ use std::sync::Arc;
 use crate::config::AppConfig;
 use crate::scheduler::start_scheduler;
 
+use tracing::info;
+
 pub struct Handler {
     pub app_config: Arc<AppConfig>,
 }
@@ -15,7 +17,7 @@ pub struct Handler {
 #[async_trait]
 impl EventHandler for Handler { 
     async fn ready(&self, _ctx: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
+        info!("{} is connected!", ready.user.name);
 
         // ctx attribute for discord connection
         let ctx_clone = _ctx.clone();

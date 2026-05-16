@@ -1,11 +1,9 @@
-use crate::jobs::output::EmbedField;
 use serde::{Deserialize, Serialize};
-
-use reqwest;
 use anyhow::anyhow;
+use tracing::warn;
 
-//Used to digest finnhub jsons
-pub struct NewsItem {
+// Used to digest finnhub jsons
+pub struct NewsArticle {
     pub title: String,
     pub source: String,
     pub url: String,
@@ -17,11 +15,11 @@ pub struct NewsItem {
 // used to send out cleaned news structure
 pub struct NewsDigest {
     pub summary: Option<String>,
-    pub fields: Vec<EmbedField>,
+    pub articles: Vec<NewsArticle>,
 }
 
 
-//finnhub api returned json parsing
+//finnhub API response types
 #[derive(Deserialize)]
 struct FinnhubNewsItem {
     headline: String,
@@ -33,7 +31,7 @@ struct FinnhubNewsItem {
 }
 
 
-//struct for gemini request
+//Gemini API request types
 #[derive(Serialize)]
 struct GeminiRequest {
     contents: Vec<GeminiContent>
@@ -49,7 +47,7 @@ struct GeminiPart {
     text: String
 }
 
-//struct for gemini response
+//Gemini API response types
 #[derive(Deserialize)]
 struct GeminiResponse {
     candidates: Vec<GeminiCandidate>
@@ -78,46 +76,25 @@ pub async fn build_news_digest(finnhub_token: &str, gemini_api_key: &str, gemini
     if news_items.is_empty(){
         return Ok(NewsDigest{
             summary: Some("No summary available".to_string()),
-            fields:vec![EmbedField {
-            name: "No Market news available".to_string(),
-            value: "Finnhub did not return general market news right now.".to_string(),
-            inline: false,
-        }]})
+            articles: Vec::new(),
+        })
     }
 
-    let fields = news_items
-    .iter()
-    .take(5)
-    .map(news_item_to_field)
-    .collect();
-    
     let summary = match generate_news_insight(&news_items, gemini_api_key, gemini_model).await {
         Ok(summary) => Some(summary),
         Err(err) => {
-            eprintln!("Failed to generate Gemini news insight: {}",err);
+            warn!("Failed to generate Gemini news insight: {}",err);
             None
         }
     };
 
-    Ok(NewsDigest {summary, 
-    fields })
+    let articles = news_items.into_iter().take(5).collect();
+
+    Ok(NewsDigest {
+        summary, 
+        articles,
+    })
 }
-
-
-// converting news item to actual discord field
-fn news_item_to_field(item: &NewsItem) -> EmbedField {
-
-    EmbedField {
-        name: item.title.clone(),
-        value: format!(
-            "Source: {} | [Read more]({})",
-            item.source,
-            item.url,
-        ),
-        inline: false,
-    }
-}
-
 
 // for safely fetching associated json value
 fn empty_string_to_none(value: String) -> Option<String> {
@@ -128,18 +105,7 @@ fn empty_string_to_none(value: String) -> Option<String> {
     }
 }
 
-// converting json item to news_item
-fn finnhub_item_to_news_item(item: FinnhubNewsItem) -> NewsItem {
-    NewsItem { title: item.headline, 
-        source: item.source, 
-        url: item.url, 
-        summary: empty_string_to_none(item.summary), 
-        datetime: Some(item.datetime), 
-        image: empty_string_to_none(item.image)
-    }
-}
-
-async fn fetch_finnhub_news(finnhub_token: &str) -> anyhow::Result<Vec<NewsItem>> {
+async fn fetch_finnhub_news(finnhub_token: &str) -> anyhow::Result<Vec<NewsArticle>> {
 
     let category = "general";
 
@@ -162,17 +128,28 @@ async fn fetch_finnhub_news(finnhub_token: &str) -> anyhow::Result<Vec<NewsItem>
 
     let news= res.into_iter()
     .map(|finnhub_item| finnhub_item_to_news_item(finnhub_item))
-    .collect::<Vec<NewsItem>>();
+    .collect::<Vec<NewsArticle>>();
 
     Ok(news)
 
 
 }
 
+// converting json item to news_item
+fn finnhub_item_to_news_item(item: FinnhubNewsItem) -> NewsArticle {
+    NewsArticle { title: item.headline, 
+        source: item.source, 
+        url: item.url, 
+        summary: empty_string_to_none(item.summary), 
+        datetime: Some(item.datetime), 
+        image: empty_string_to_none(item.image)
+    }
+}
+
 
 // functions for creating news insight
 async fn generate_news_insight(
-    news_items: &[NewsItem],
+    news_items: &[NewsArticle],
     gemini_api_key: &str,
     gemini_model: &str,
 )-> anyhow::Result<String>{
@@ -214,7 +191,7 @@ async fn generate_news_insight(
     Ok(part.text.clone())
 }
 
-fn build_news_insight_prompt(news_items: &[NewsItem]) -> String{
+fn build_news_insight_prompt(news_items: &[NewsArticle]) -> String{
 
     let mut prompt = "You are a financial market intelligence analyst.
 

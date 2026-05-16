@@ -4,10 +4,12 @@ use serenity::prelude::Context;
 use crate::jobs::output::{JobMessage, JobOutput};
 use std::collections::HashMap;
 
+use tracing::{warn, error};
+
 
 pub async fn send_job_output(ctx: &Context, channels: &HashMap<String, ChannelId>, output: JobOutput){
     let Some(channel_id) = channels.get(&output.channel_key).copied() else {
-        eprintln!("Channel not found: {}", &output.channel_key);
+        warn!("Channel not found: {}", &output.channel_key);
         return;
     };
 
@@ -16,7 +18,7 @@ pub async fn send_job_output(ctx: &Context, channels: &HashMap<String, ChannelId
             let result = channel_id.say(&ctx.http, text).await;
 
             if let Err(e) = result {
-                eprintln!("Failed to send message: {:?}", e);
+                error!("Failed to send message: {:?}", e);
             }
         },
         JobMessage::Embed(embed_message) => {
@@ -41,7 +43,7 @@ pub async fn send_job_output(ctx: &Context, channels: &HashMap<String, ChannelId
             let result = channel_id.send_message(&ctx.http, message).await;
 
             if let Err(e) = result {
-                eprintln!("Failed to send embed job: {:?}", e);
+                error!("Failed to send embed job: {:?}", e);
             }
 
         }

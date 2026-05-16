@@ -9,6 +9,8 @@ use crate::config::AppConfig;
 use crate::jobs::{build_jobs, Job};
 use crate::sender::send_job_output;
 
+use tracing::{info, error};
+
 
 async fn run_jobs(
     ctx: &Context,
@@ -18,7 +20,7 @@ async fn run_jobs(
     for job in jobs {
         match job.run().await {
             Ok(output) => send_job_output(ctx, &app_config.discord.channels, output).await,
-            Err(e) => eprintln!("Error happened for Job:{}: {:?}", job.name(), e),
+            Err(e) => error!("Error happened for Job:{}: {:?}", job.name(), e),
         }
     }
 }
@@ -49,22 +51,22 @@ pub async fn start_scheduler(ctx: Context, app_config: Arc<AppConfig>) {
     let jobs = build_jobs(&app_config);
 
     for job in &jobs {
-        println!("Registered Job: {}", job.name());
+        info!("Registered Job: {}", job.name());
     }
 
     if jobs.is_empty() {
-        println!("No jobs enabled");
+        info!("No jobs enabled");
         return;
     }
 
     if app_config.scheduler.run_on_start {
-        println!("RUN_ON_START=true, running jobs once now");
+        info!("RUN_ON_START=true, running jobs once now");
         run_jobs(&ctx, &app_config, &jobs).await;
     }
 
     loop {
         let sleep_duration = duration_until_next_daily_run();
-        println!("Next daily brief in {:?}", sleep_duration);
+        info!("Next daily brief in {:?}", sleep_duration);
 
         sleep(sleep_duration).await;
 

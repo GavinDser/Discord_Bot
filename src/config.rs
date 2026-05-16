@@ -9,6 +9,7 @@ pub struct AppConfig {
     pub stock: StockConfig,
     pub scheduler: SchedulerConfig,
     pub gemini: GeminiConfig,
+    pub crypto: CryptoConfig,
 }
 
 pub struct DiscordConfig {
@@ -24,6 +25,10 @@ pub struct StockConfig {
     pub watchlist: Vec<String>,
 }
 
+pub struct CryptoConfig {
+    pub crypto_ids: Vec<String>
+}
+
 pub struct SchedulerConfig {
     pub run_on_start: bool,
 }
@@ -32,6 +37,8 @@ pub struct GeminiConfig {
     pub api_key: String,
     pub model: String,
 }
+
+
 
 
 impl AppConfig {
@@ -81,6 +88,17 @@ impl AppConfig {
         let gemini_model = std::env::var("GEMINI_MODEL")
         .unwrap_or_else(|_| "gemini-2.5-flash".to_string());
 
+        //Crypto ids
+        let crypto_ids_raw = std::env::var("CRYPTO_IDS")
+        .context("No Crypto ids found")?;
+
+        let crypto_ids = crypto_ids_raw
+        .split(',')
+        .map(|id| id.trim())
+        .filter(|id| !id.is_empty())
+        .map(|id|id.to_lowercase())
+        .collect::<Vec<String>>(); 
+
 
         Ok(Self {
             discord: DiscordConfig {
@@ -98,6 +116,9 @@ impl AppConfig {
             },
             gemini: GeminiConfig { api_key: gemini_key, 
                 model: gemini_model },
+            crypto: CryptoConfig {
+                crypto_ids
+            },
         })
         
 
